@@ -1,0 +1,11 @@
+*.Rproj.*
+*.Rproj
+*.Rhistory
+*.RData
+*.Ruserdata
+*.png
+*.docx
+*.pdf
+*.json
+/TakeoutChannon
+/TakeoutDandre
