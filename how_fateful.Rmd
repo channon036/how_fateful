@@ -128,7 +128,7 @@ To do that we'll run the following function on both data sets:
 
 ```{r transform_function}
 
-transform_maps_data <- function(x, person, time.accuracy, distance.accuracy){
+transform_maps_data <- function(x, person, time.accuracy){
   
   # First I'm extracting the variables that we're interested in and dropping all the information related to whether Google thinks we were in a vehicle or sitting still. 
   
@@ -305,7 +305,7 @@ Now that I've been able to whittle down the potential locations we could have me
 
 We've already calculated the time difference between any two visits in the both_places data frame. This is because when joining the two data frames for each timestamp of person x's visits in a set of coordinates, there is corresponding data for each timestamp of person y's visits to a particualr set of coordinates.
 
-```{r}
+```{r minimum_time_differences, warning = FALSE, message = FALSE}
 
 #Group by coordinate and then include the instances with the minimum time differences between visits
 
@@ -359,7 +359,7 @@ ggmap(map_close_brushes,
 
 So it seems like when grouping by locations with a maximum of a 11m radius we were always hundreds of hours apart from each other. This makes it seem like we never even got close to meeting. Another way to interrogate the data is then to ask, how close did we ever get to each other at any given time?
 
-```{r}
+```{r all_time_intervals, message=FALSE, warning=FALSE}
 
 all_intervals <- seq(from = start_looking_from, to = best_day, by = "min") %>%
   as.data.frame()
@@ -371,12 +371,100 @@ whole_time_x <- full_join(all_intervals, x_records, by = "timestamp") %>%
 whole_time_y <- full_join(all_intervals, y_records, by = "timestamp") %>% 
   mutate(person = y) 
 
+#I'm using the haversine formula to calculate the distance between two points on earth's spherical surface. This is because the harversine formula offers the most accuracy on the scale of meters.
+
+haversine_calc <- function(lat.x, lat.y, lon.x, lon.y){
+  
+  #radius of the earth in km
+  r <- 6371
+  
+  #converting degrees to radians
+  r.lat.x <- (lat.x*pi)/180
+  r.lat.y <- (lat.y*pi)/180
+  r.lon.x <- (lon.x*pi)/180
+  r.lon.y <- (lon.y*pi)/180
+  
+  dlat <- r.lat.y - r.lat.x
+  dlon <- r.lon.y - r.lon.x
+  
+  a <- sin(dlat/2)**2 + cos(r.lat.x) * cos(r.lat.y) * sin(dlon/2)**2
+  
+  c <- 2 * asin(sqrt(a))
+  
+  d <- c * r
+  
+}
+
 whole_time_both <- full_join(whole_time_x, whole_time_y, by = "timestamp") %>%
   filter(!is.na(coordinates.x)) %>%
   filter(!is.na(coordinates.y)) %>%
-  mutate(distance = (acos(sin(latitude.x)*sin(latitude.y)+cos(latitude.x)*cos(latitude.y)*cos(longitude.y-longitude.x) )*6371)) %>%
+  mutate(distance = haversine_calc(lat.x = latitude.x,
+                                   lat.y = latitude.y,
+                                   lon.x = longitude.x,
+                                   lon.y = longitude.y)*1000) %>%
   arrange(distance)
 
 #movable-type.co.uk/scripts/latlong.html
+#https://www.geeksforgeeks.org/program-distance-two-points-earth/#:~:text=For%20this%20divide%20the%20values,is%20the%20radius%20of%20Earth.
+
+
+
 
 ```
+
+So the closest we ever really got was `r min(whole_time_both$distance)` meters to each other. I'd say that wasn't even close. Let's take a look at the closest pairs of coordinates at any given time. 
+
+### Visualising how close we got
+
+```{r the_closest_distances, warning = FALSE message = FALSE}
+
+less_than_500m <- whole_time_both %>% filter(distance <= 500)
+
+map_close_distances <- get_map(
+  location = c(
+    lon = median(c(less_than_500m$longitude.x, less_than_500m$longitude.y)), 
+    lat = median(c(less_than_500m$latitude.x, less_than_500m$latitude.y))
+    ), 
+  zoom = 17,
+  size = c(640, 640),
+  maptype = "toner-lite",
+  color = "bw")
+
+ggmap(map_close_distances, 
+      darken = c(0.30, "black")) +
+  geom_point(aes(x = longitude.x, y = latitude.x),
+             data = less_than_500m, 
+             colour = my_palette(3)[1],
+             size = 3,
+             alpha = 0.8) +
+  geom_point(aes(x = longitude.y, y = latitude.y),
+             data = less_than_500m, 
+             colour = my_palette(3)[3],
+             size = 3,
+             alpha = 0.8) +
+  theme(text=element_text(family="sans"),
+        axis.title=element_blank(),
+        axis.text=element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid = element_blank(),
+        legend.position = "none") +
+  ggtitle(label = "Crossing paths on campus") +
+   geom_text(data = less_than_500m,
+            aes(longitude.x, latitude.x, label = format(timestamp, format = "%H:%M")),
+            colour = "white", 
+            check_overlap = TRUE,
+            size = 4, 
+            hjust = 1.5, 
+            vjust = 0.15) +
+  geom_text(data = less_than_500m,
+            aes(longitude.y, latitude.y, label = format(timestamp, format = "%H:%M")),
+            colour = "white", 
+            check_overlap = TRUE,
+            size = 4, 
+            hjust = 1.5, 
+            vjust = 0.15) +
+  geom_line(group = paired)
+
+```
+
+On `r as.Date(min(less_than_500m$timestamp))` we were recorded being less than 500m from one another. On this day, it appears that we both move towards the bus stop at the north of the campus around lunch time. Could we have taken the bus together? The truth is, it seems like despite all the conditions theoretically allowing us the opportunity to run into each other, the one thing that must have kept us apart was that it just wasn't the right time yet.
