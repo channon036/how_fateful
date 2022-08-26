@@ -1,0 +1,28 @@
+---
+title: "Untitled"
+author: "Channon Perry"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, message = FALSE, warning = FALSE}
+
+packages <-
+  c("tidyverse",
+    "lubridate",
+    "rjson",
+    "ggplot2",
+    "ggmap",
+    "wesanderson")
+
+install.packages(setdiff(packages, rownames(installed.packages())))
+
+library(tidyverse)
+library(lubridate)
+library(rjson)
+library(ggplot2)
+library(ggmap)
+library(wesanderson)
+
+```
+

@@ -9,11 +9,15 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
+
+packages <- c("rmarkdown", "tidyverse", "lubridate", "rjson", "ggplot2", "ggmap", "RColorBrewer")
+
+install.packages(setdiff(packages, rownames(installed.packages())))  
 
 library(tidyverse)
-library(rjson)
 library(lubridate)
+library(rjson)
 library(ggplot2)
 library(ggmap)
 library(RColorBrewer)
@@ -22,11 +26,11 @@ library(RColorBrewer)
 
 # Introduction
 
-When I met my boyfriend I often felt bewildered that despite living in the same city for five years and attending the same university that it took a dating app to eventually introduce us. I'm confident that I'm not the only person to have wondered how close they came to meeting their significant other before they actually did, and thanks to Google's location history quietly ticking away collecting GPS data in the background I thought that I could potentially find a real answer to just how fatefully our paths crisscrossed before we met.
+When I met my boyfriend I often felt bewildered that despite living in the same city for five years and attending the same university that it took a dating app to introduce us. I'm confident that I'm not the only person to have wondered how close they came to meeting their significant other before they actually did, and thanks to Google's location history quietly ticking away collecting GPS data in the background I thought that I could potentially find a real answer to just how fatefully our paths crisscrossed before we met.
 
 # Sourcing the data
 
-You can request and download all of your recorded location history through the Google Maps desktop website. This data comes in a zipped folder full of JSON files. My partner kindly agreed to download his data himself, and then transferred it to me.
+You can request and download all of your recorded location history through the Google Maps desktop website. This data comes in a zipped folder full of JSON files. My partner kindly agreed to download his data himself, and then sent it to me.
 
 If you're intending to use this script with your own two sets of data this article walks through the process of requesting your location history from Google in a lot of detail: <https://www.howtogeek.com/725241/how-to-download-your-google-maps-data/>
 
@@ -75,7 +79,7 @@ Our data has two types of accuracy indicators. The GPS coordinates have differin
 
 These accuracy measures define the margin of error in distance for any of the conclusions that we draw. That is, when we potentially conclude that him and I did cross paths, did we come into tens, or hundreds, or thousands of meters from each other? I chose 11.1m, related to coordinates with 4 decimal places (+/- 00.0000), because I think that even in dense urban areas the length of a telephone pole had a tantalizingly high probability of being within sight. 
 
-I've paired together the two types of accuracy measures so that the distance accuracy is standardised for all our insights. Coordinates with more than the stated number of decimal places are rounded. This means that we're dividing the world into bigger blocks, and moving any of the points in the middle of a block to its nearest edge. Then, any of the reported accuracy measurements with distances less than the related distance in meters are filtered out of the dataset. 
+I've paired together the two types of accuracy measures so that the distance accuracy is standardised for all our insights. Coordinates with more than the stated number of decimal places are rounded. This means that we're dividing the world into bigger blocks, and moving any of the points in the middle of a block to its nearest corner. Then, any of the reported accuracy measurements with distances less than the related distance in meters are filtered out of the dataset. 
 
 
 |  accuracy.level  |      1       |       2       |       3        |        4        |
@@ -86,7 +90,24 @@ I've paired together the two types of accuracy measures so that the distance acc
 
 ### Time margins
 
-We also need to define the time boundaries of the two data sets. The first date is the earliest possible date (start_looking_from) that we had any real probability of having come into contact. I set this as the rough date that I moved to the city. This could be switched out for the highest minimum date between the two data sets to see from all of recorded forever, I'm just a little impatient. 
+We also need to define the time boundaries of the two data sets. The first date is the earliest possible date (start_looking_from) that we had any real probability of having come into contact. This could also be set to the minimum date in either of the two sets if there's no clear probable contact time like moving to the same city. 
+
+```{r get_min_date, echo=FALSE}
+
+min_x <- pluck(records_data_x, 1, "timestamp") %>% as.Date
+
+print(paste(x, "'s earliest record is", min_x))
+
+min_y <- pluck(records_data_y, 1, "timestamp") %>% as.Date
+
+print(paste(y, "'s earliest record is", min_y))
+
+first_intersect_date <- max(min_x, min_y)
+
+print(paste("Use", first_intersect_date, "to start at earliest intersecting dates."))
+
+```
+In my case, fortunately my partner's records start around the time I first moved to the city.
 
 There is also an end date to the time set. That is the date and time that we're definitely certain that our GPS coordinates matched up for the first time.
 
@@ -97,12 +118,12 @@ I chose 5 minutes because it was also a margin I was happy with having on either
 ```{r parameters_accuracy}
 
 #Distance margin
-accuracy.level <- 2
+accuracy_level <- 1
 
 #Time margins
-time.accuracy <- "5 mins" #The granularity of time buckets. Use ?round_date to see time categories available.
+time_accuracy <- "30 mins" #The granularity of time buckets. Use ?round_date to see time categories available.
 
-start_looking_from <- as.POSIXct("2015/01/01 00:00:00") #Start date to start analysing data from
+start_looking_from <- as.POSIXct(first_intersect_date) #Start date to start analysing data from
   
 best_day <- as.POSIXct("2020/08/08 1:00:00") #The confirmed first meeting <3
 
@@ -118,9 +139,9 @@ ac <- c(ra, dp)
 
 accuracy <- matrix(ac, nrow = 2, byrow = TRUE)
 
-distance.accuracy <- accuracy[2, accuracy.level] 
+distance_accuracy <- accuracy[2, accuracy_level] 
 
-google.reported.accuracy <- accuracy[1, accuracy.level]
+google_reported_accuracy <- accuracy[1, accuracy_level]
 
 ```
 
@@ -142,7 +163,7 @@ To do that we'll run the following function on both data sets:
 
 ```{r transform_function}
 
-transform_maps_data <- function(x, person, time.accuracy){
+transform_maps_data <- function(x, person, time_accuracy){
   
   # Extracting the variables that we're interested in and dropping all the information related to whether Google thinks we were in a vehicle or sitting still. 
   
@@ -167,21 +188,21 @@ transform_maps_data <- function(x, person, time.accuracy){
     mutate(timestamp_utc = as.POSIXct(timestamp, format = "%Y-%m-%dT%H:%M:%S", tz = "UTC")) %>%
     mutate(timestamp = with_tz(timestamp_utc, tzone = Sys.timezone())) %>%
     select(-timestamp_utc) %>%
-    mutate(timestamp = round_date(timestamp, unit = time.accuracy)) %>% 
+    mutate(timestamp = round_date(timestamp, unit = time_accuracy)) %>% 
     
   # Adding a column with the name of the individual who the records belong to
     mutate(person = person) %>%
     
   # Latitude and longitude are in a suitable format to allow for quick copy and pasting into Google Maps, and are filtered within the distance.accuracy number of decimal points
     
-    mutate(latitude = round((latitude/10000000), distance.accuracy)) %>%
-    mutate(longitude = round((longitude/10000000), distance.accuracy)) %>%
+    mutate(latitude = round((latitude/10000000), distance_accuracy)) %>%
+    mutate(longitude = round((longitude/10000000), distance_accuracy)) %>%
     
   # Adding a column for combined coordinates
     mutate(coordinates = paste(latitude, longitude, sep = ", ")) %>% 
     
   # Filtering our any records outside of reported accuracy
-    filter(accuracy <= google.reported.accuracy) %>%
+    filter(accuracy <= google_reported_accuracy) %>%
     filter(accuracy >= 0) %>%
     
   # Filtering our any records before or after start and end dates
@@ -195,11 +216,11 @@ transform_maps_data <- function(x, person, time.accuracy){
 
 ```
 
-```{r transform, echo = FALSE}
+```{r transform}
 
-x_records <- transform_maps_data(records_data_x, person = x, time.accuracy = time.accuracy)
+x_records <- transform_maps_data(records_data_x, person = x, time_accuracy = time_accuracy)
 
-y_records <- transform_maps_data(records_data_y, person = y, time.accuracy = time.accuracy)
+y_records <- transform_maps_data(records_data_y, person = y, time_accuracy = time_accuracy)
 
 ```
 
@@ -215,8 +236,8 @@ Saving the files
 
 ```{r load}
 
-save(x_records, file = "Channon_Google_Maps_history.RData")
-save(y_records, file = "Dandre_Google_Maps_history.RData")
+save(x_records, file = "X_Google_Maps_history.RData")
+save(y_records, file = "Y_Google_Maps_history.RData")
 
 ```
 
@@ -226,14 +247,17 @@ save(y_records, file = "Dandre_Google_Maps_history.RData")
 
 Next I'll combine the two sets of records together to get a long version of all the records.
 
-```{r combined_records}
+```{r combined_records, echo=FALSE}
 
 
 columns <- c("person", "timestamp", "coordinates", "latitude", "longitude", "accuracy")
 
-combined <- full_join(x_records, y_records, by = columns)
+combined <- full_join(x_records, y_records, by = columns) %>% 
+  group_by(timestamp, coordinates, person) %>%
+  mutate(max_accuracy = min(accuracy), .keep = "unused") %>%
+  unique()
 
-arrange(combined, longitude) %>% head()
+arrange(combined, coordinates) %>% head(5)
 
 
 ```
@@ -242,7 +266,7 @@ arrange(combined, longitude) %>% head()
 
 This is an initial view of some of the most common places we both visited.
 
-```{r place_groups, message = FALSE}
+```{r place_groups, echo = FALSE, message = FALSE}
 
 #Group the data together by places
 places <- combined %>%
@@ -260,31 +284,29 @@ y_places <- places %>%
 
 #Look for the intersection of places that both x and y had been
 both_places <- full_join(x_places, y_places, by = c("latitude","longitude", "coordinates")) %>%
-  mutate(both.records = records.x + records.y) %>%
-  mutate(x_per = (records.x/both.records)*100) %>%
-  mutate(y_per = (records.y/both.records)*100) %>%
+  mutate(both_records = records.x + records.y) %>%
+  mutate(x_per = (records.x/both_records)*100) %>%
+  mutate(y_per = (records.y/both_records)*100) %>%
   mutate(dif_per = x_per - y_per) %>%
   mutate(time_dif = abs(difftime(timestamp.x, timestamp.y, units = "auto"))) %>%
+  filter(!is.na(records.x)) %>%
+  filter(!is.na(records.y)) %>%
   unique() %>%
-  arrange(desc(both.records)) 
-
-most_places <- both_places %>%
-  filter(both.records >= 2) %>%
-  arrange(desc(both.records)) 
+  arrange(desc(both_records)) 
 
 ```
 
-### Visualizing all the places we had both been
+#### Visualizing all the places we had both been
 
 ```{r map_common_locations, warning = FALSE, message=FALSE}
 
-#Get Map data from Google API
-map_most_common_places <- get_map(
-  location = c(lon = median(most_places$longitude), lat = median(most_places$latitude)), 
-  zoom = 12,
-  size = c(640, 640),
-  maptype = "toner-lite",
-  color = "bw")
+# Get Map data from Google API
+
+# Note: you'll need to get a key on the Google Maps platform to access the API.
+
+# Go to https://mapsplatform.google.com/ -> get started -> credentials -> API keys 
+# Find Maps API Key and SHOW KEY, then copy and paste your API key below:
+
 
 #Set a colour palette 
 my_palette <- colorRampPalette(brewer.pal(3, "Spectral"))
@@ -294,7 +316,7 @@ ggmap(map_most_common_places, darken = c(0.30, "black")) +
   geom_point(aes(x = longitude, y = latitude, size = both.records, colour = dif_per),
              data = most_places, 
              alpha = 0.8)+
-  scale_radius(range = c(3,10), 
+  scale_radius(range = c(1,10), 
              name = "Number of records") +
   scale_colour_gradientn(colours = my_palette(3), 
                          name = "Most visited by person", 
@@ -309,13 +331,13 @@ ggmap(map_most_common_places, darken = c(0.30, "black")) +
 
 ```
 
-There were `r n_distinct(most_places$coordinates)` coordinates we were both recorded in at some point during the five year time frame. It's clear that most of the common locations are the main roads in and around the city. However, interestingly my partner had been within 11.1m of both my office and my apartment. 
+There were `r n_distinct(both_places$coordinates)` coordinates we were both recorded in at some point during the five year time frame. It's clear that most of the common locations are the main roads in and around the city. However, interestingly my partner had been within `r accuracy[2,accuracy.level]` of both my office and my apartment. 
 
 ### How close in time did we get to meeting in any of those places?
 
 Now that I've been able to whittle down the potential locations we could have meet, next we'll need to measure how near in time we came to being at those locations.
 
-We've already calculated the time difference between any two visits in the both_places data frame. This is because when joining the two data frames for each timestamp of person x's visits in a set of coordinates, there is corresponding data for each timestamp of person y's visits to a particualr set of coordinates.
+We've already calculated the time difference (time_diff) between any two visits in the both_places data frame. This is because when joining the two data frames for each timestamp of person x's visits in a set of coordinates, there is corresponding data for each timestamp of person y's visits to a particualr set of coordinates.
 
 ```{r minimum_time_differences, warning = FALSE, message = FALSE}
 
@@ -323,44 +345,37 @@ We've already calculated the time difference between any two visits in the both_
 
 grouped_places <- both_places %>% 
   group_by(coordinates) %>%
-  mutate(closest.visit = min(time_dif)) 
+  mutate(closest_visit = min(time_dif)) 
 
 closest_timestamps <- grouped_places %>%
   unique() %>%
-  filter(time_dif == closest.visit) %>%
-  arrange(closest.visit) %>%
-  mutate(closest.visit = as.duration(closest.visit))
-
-#Select the top five closest brushes for mapping
-
-top_5_closest_brushes <- head(closest_timestamps, 5)
+  filter(time_dif == closest_visit) %>%
+  mutate(closest_visit = as.numeric(as.duration(closest_visit)))
 
 map_close_brushes <- get_map(
-  location = c(lon = median(top_5_closest_brushes$longitude), lat = median(top_5_closest_brushes$latitude)), 
-  zoom = 13,
+  location = c(lon = median(closest_timestamps$longitude), lat = median(closest_timestamps$latitude)), 
+  zoom = 14,
   size = c(640, 640),
   maptype = "toner-lite",
   color = "bw")
 
 ggmap(map_close_brushes, 
       darken = c(0.30, "black")) +
-  geom_point(aes(x = longitude, y = latitude),
-             data = top_5_closest_brushes, 
-             colour = my_palette(3)[2],
-             size = 5,
+  geom_point(aes(x = longitude, y = latitude, color = closest_visit),
+             data = closest_timestamps, 
+             size = 2,
              alpha = 0.8) +
   theme(text=element_text(family="sans"),
         axis.title=element_blank(),
         axis.text=element_blank(),
         axis.ticks = element_blank(),
-        panel.grid = element_blank(),
-        legend.position = "none") +
+        panel.grid = element_blank()) +
   ggtitle(label = "Close encounters") +
-   geom_text(data = top_5_closest_brushes,
-            aes(longitude, latitude, label = closest.visit),
+   geom_text(data = closest_timestamps,
+            aes(longitude, latitude, label = closest_visit),
             colour = "white", 
             check_overlap = TRUE,
-            size = 7, 
+            size = 3, 
             hjust = 0.5, 
             vjust = -1.2)
 
@@ -424,7 +439,24 @@ whole_time_both <- full_join(whole_time_x, whole_time_y, by = "timestamp") %>%
 
 ```
 
-So the closest we ever really got was `r min(whole_time_both$distance)` meters to each other. I'd say that wasn't even close. Let's take a look at the closest pairs of coordinates at any given time. 
+So the closest we ever really got was `r min(whole_time_both$distance)` meters to each other. I'd say that wasn't even close. 
+
+Let's look at this over time.
+
+```{r the_distance_over_time}
+
+whole_time_both$accuracy <- whole_time_both$accuracy.x + whole_time_both$accuracy.y
+
+ggplot(whole_time_both, aes(x = timestamp, y = distance)) +
+  geom_point() +
+  ylim(0, 1000) +
+  geom_errorbar(aes(ymin = distance-accuracy, ymax = distance+accuracy))
+
+```
+
+
+
+Let's take a look at the closest pairs of coordinates at any given time. 
 
 ### Visualising how close we got
 
@@ -446,36 +478,38 @@ ggmap(map_close_distances,
       darken = c(0.30, "black")) +
   geom_point(aes(x = longitude.x, y = latitude.x),
              data = less_than_500m, 
-             colour = my_palette(3)[1],
-             size = 3,
-             alpha = 0.8) +
+             colour = two_colours[1],
+             size = 1,
+             alpha = 0.3, 
+             position = "jitter") +
   geom_point(aes(x = longitude.y, y = latitude.y),
              data = less_than_500m, 
-             colour = my_palette(3)[3],
-             size = 3,
-             alpha = 0.8) +
-  theme(text=element_text(family="sans"),
-        axis.title=element_blank(),
-        axis.text=element_blank(),
-        axis.ticks = element_blank(),
-        panel.grid = element_blank(),
-        legend.position = "none") +
-  ggtitle(label = "Crossing paths on campus") +
-   geom_text(data = less_than_500m,
-            aes(longitude.x, latitude.x, label = format(timestamp, format = "%H:%M")),
-            colour = "white", 
-            check_overlap = TRUE,
-            size = 4, 
-            hjust = 1.5, 
-            vjust = 0.15) +
-  geom_text(data = less_than_500m,
-            aes(longitude.y, latitude.y, label = format(timestamp, format = "%H:%M")),
-            colour = "white", 
-            check_overlap = TRUE,
-            size = 4, 
-            hjust = 1.5, 
-            vjust = 0.15)
+             colour = two_colours[2],
+             size = 1,
+             alpha = 0.3, 
+             position = "jitter") +
+  theme_classic()+
+  ggtitle(label = "Crossing paths on campus") 
+# +
+  #  geom_text(data = less_than_500m,
+  #           aes(longitude.x, latitude.x, label = format(timestamp, format = "%H:%M")),
+  #           colour = "white", 
+  #           check_overlap = TRUE,
+  #           size = 4, 
+  #           hjust = 1.5, 
+  #           vjust = 0.15) +
+  # geom_text(data = less_than_500m,
+  #           aes(longitude.y, latitude.y, label = format(timestamp, format = "%H:%M")),
+  #           colour = "white", 
+  #           check_overlap = TRUE,
+  #           size = 4, 
+  #           hjust = 1.5, 
+  #           vjust = 0.15)
 
 ```
 
 On `r as.Date(min(less_than_500m$timestamp))` we were recorded being less than 500m from one another. On this day, it appears that we both move towards the bus stop at the north of the campus around lunch time. Could we have taken the bus together? The truth is, it seems like despite all the conditions theoretically allowing us the opportunity to run into each other, the one thing that must have kept us apart was that it just wasn't the right time yet.
+
+NB ==================================================================================
+X vs Y
+time vs distance
