@@ -12,27 +12,28 @@ output:
 ```{css, echo=FALSE, message = FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(class.source = "code")
 
 .code {
   background-color: #FFF8C7;
   border: 3px #38315F;
   
-knitr::opts_chunk$set(class.source = "code")
-knitr::opts_chunk$set(fig.width=16, fig.height=8) 
+
+knitr::opts_chunk$set(fig.width=20, fig.height=10) 
 
 ```
 
 # Introduction
 
-When I met my boyfriend I sometimes felt a tinge of regret that despite living in the same city for five years and attending the same university that we never got to make an adorable meet-cute story. Our story isn't unique to many couples in 2020- in the trough between COVID waves we started speaking online. On Bumble, a dating app, to be specific.
+When I met my boyfriend, I sometimes felt a tinge of regret that we never got to make an adorable meet-cute story, despite living in the same city for five years and attending the same university. Our story isn't unique from many couples in 2020- in a trough between COVID waves, we started speaking online, on Bumble, a dating app.
 
-Thanks to Google's location history quietly ticking away collecting GPS data in the background I thought that I could potentially find a real answer to how fatefully our paths crisscrossed before we met. Just how closely did we come to potentially having an eyes-meet-across-the-room moment?
+Thanks to Google's location history quietly ticking away collecting GPS data in the background I thought that I could potentially find an answer to how fatefully our paths criss-crossed before we met. Just how closely did we come to potentially having an eyes-meet-across-the-room moment?
 
 *Scroll down to 'The Answer' on the table of contents on the left if you're not interested in the technical stuff!*
 
 # Sourcing the data
 
-You can request and download all of your recorded location history through the Google Maps desktop website. This data comes in a zipped folder full of JSON files. My partner kindly agreed to download his data himself, and then sent it to me.
+You can request and download all your recorded location history through the Google Maps desktop website. This data comes in a zipped folder full of JSON files. My partner kindly agreed to download his data and sent it to me.
 
 ```{r setup, message = FALSE, warning = FALSE}
 
@@ -117,11 +118,11 @@ This table displays how the distance accuracy measures relate to each other.
 |  accuracy (m)  |    111     |    11.1     |     1.11     |     0.111     |
 |  coordinates   | +/- 00.000 | +/- 00.0000 | +/- 00.00000 | +/- 00.000000 |
 
-Our data has two types of accuracy indicators. The GPS coordinates have differing number of decimal places depending on the specificity of the location. There is a also a reported accuracy measurement based on the strength of the signal of the GPS at the time and is reported in meters.
+The data has two types of accuracy indicators. The GPS coordinates have differing numbers of decimal places depending on the specificity of the location. There is also a reported accuracy measurement based on the strength of the signal of the GPS at the time which is reported in meters.
 
-These accuracy measures define the margin of error in distance for any of the conclusions that we draw. That is, when we potentially conclude that him and I did cross paths, did we come into tens, or hundreds, or thousands of meters from each other? I initially chose 11.1m, related to coordinates with 4 decimal places (+/- 00.0000), because I thought that even in dense urban areas the length of a telephone pole had a tantalizingly high probability of being within sight. However, the quality of the data (see below) limited the records too much, forcing me to use a distance accuracy of 111m instead.
+These accuracy measures define the margin of error in the distance for any of the conclusions that we draw. That is when we potentially conclude that he and I did cross paths, did we come into tens, hundreds, or thousands of meters from each other? I initially chose 11.1m, related to coordinates with 4 decimal places (+/- 00.0000), because I thought that even in dense urban areas the length of a telephone pole had a tantalizingly high probability of being within sight. However, the quality of the data (see below) limited the records too much, forcing me to use a distance accuracy of 111m instead.
 
-I've paired together the two types of accuracy measures so that the distance accuracy is standardised for all our insights. Coordinates with more than the stated number of decimal places are rounded. This means that we're dividing the world into bigger blocks, and moving any of the points in the middle of a block to its nearest corner. Then, any of the reported accuracy measurements with distances less than the related distance in meters are filtered out of the data set.
+I've paired together the two types of accuracy measures so that the distance accuracy is standardised for all our insights. Coordinates with more than the stated number of decimal places are rounded. This means that we're dividing the world into bigger blocks and moving any of the points in the middle of a block to its nearest corner. Then, any of the reported accuracy measurements with distances less than the related distance in meters are filtered out of the data set.
 
 ```{r distance_accuracy}
 
@@ -135,6 +136,8 @@ accuracy_level <- 1
 We also need to define the time boundaries of the two data sets. The first date is the earliest possible date that we had any real probability of having come into contact. This could also be set to the minimum date in either of the two sets if there's no clear probable contact time like moving to the same city.
 
 ```{r get_min_date, echo=FALSE}
+
+#Find minimum date in either dataset
 
 min_x <- pluck(records_data_x, 1, "timestamp") %>% as.Date
 
@@ -170,7 +173,7 @@ best_day <- as.POSIXct("2020/08/08 1:00:00") #The confirmed first meeting <3
 
 Similarly to distance margins, it's also helpful to set time intervals to group coordinates into. This is because when considering a scale of meters people just don't tend to move fast enough across the surface of the earth on a day-to-day basis for it to be necessary to record our location many times a second, however, the data is stored down to millisecond time stamps.
 
-I chose 10 minutes because it was also a margin I was happy with having on either side of my insights, i.e. we may have sat on the same bench 10 minutes apart.
+I chose 10 minutes because it was also a margin, I was happy with having on either side of my insights, i.e., we may have sat on the same bench 10 minutes apart.
 
 ```{r parameters_accuracy}
 
@@ -182,7 +185,7 @@ time_accuracy <- "10 mins" #The granularity of time buckets. Use ?round_date to 
 ```{r background_table, echo = FALSE}
 
 
-#This ties together the two types of accuracy filters into one choice by setting the number of decimals in a coordinate to the same accuracy or more than the reported accuracy so that all results are guaranteed to have the minimum accuracy in the table above.
+# This ties the two types of accuracy filters into one choice by setting the number of decimals in a coordinate to the same accuracy or more than the reported accuracy so that all results are guaranteed to have the minimum accuracy in the table above.
 
 ra <- c(111, 11.1, 1.11, 0.111) #recorded accuracy
 dp <- c(3, 4, 5, 6) #decimal places
@@ -196,7 +199,7 @@ google_reported_accuracy <- accuracy[1, accuracy_level]
 
 ```
 
-The tree-style lists I've converted the JSON files from are still in an unrefined state. Currently, each data set is made up of hundreds of thousands of observations, each of which is in a listed format with the below structure:
+The tree-style lists I've converted the JSON files from are still unrefined. Currently, each data set is made up of hundreds of thousands of observations, each of which is in a listed format with the below structure:
 
 ```{r exlist, echo = FALSE}
 str(records_data_x[[1]], max.level = 1)
@@ -217,6 +220,7 @@ transform_maps_data <-
            person,
            time_accuracy,
            distance_accuracy) {
+    
     # Extracting the variables that we're interested in and dropping all the information related to whether Google thinks we were in a vehicle or sitting still.
     
     timestamp <-
@@ -329,7 +333,9 @@ save(y_records, file = "Y_Google_Maps_history.RData")
 
 Working with one dataset is easier than working with two in this case so we'll create one long-version of all the records for analysis.
 
-```{r combined_records, echo=FALSE}
+```{r combined_records}
+
+# Combining the records together
 
 
 if(file.exists("combined_records.RData")) {
@@ -361,11 +367,11 @@ arrange(combined, coordinates) %>% head(5)
 
 ```
 
-```{r colour_schemeing, echo = FALSE}
+```{r color_schemeing, echo = FALSE}
 
-two_colours <- wes_palette("Darjeeling1", n = 2)
+two_colors <- wes_palette("Darjeeling1", n = 2)
 
-three_colours <-  wes_palette("Darjeeling1", n = 3)
+three_colors <-  wes_palette("Darjeeling1", n = 3)
 
 ```
 
@@ -373,13 +379,17 @@ three_colours <-  wes_palette("Darjeeling1", n = 3)
 
 ### Data completeness
 
-```{r data_quality_assesment, echo = FALSE}
+```{r data_quality_assesment, echo = FALSE }
 
 # How much of our time was recorded by Google Maps?
+
+# The entire time frame start date to meet date
 
 total_time <-
   difftime(best_day, start_looking_from, units = "mins") %>%
   as.numeric() / 10
+
+# How many 10-minute intervals had at least one record
 
 recorded_time <- combined %>%
   group_by(person) %>%
@@ -395,30 +405,30 @@ ys <- glue::glue(y, "'s")
 y_per_records <-
   glue::glue(as.numeric(round(recorded_time[2, 3], 2)) * 100, "%")
 
-records_avaliable <-
+records_available <-
   ggplot(combined, aes(x = timestamp, fill = person)) +
   geom_histogram(
     position = "identity",
     bins = round(total_time / 1440),
     alpha = 0.5
   ) +
-  scale_fill_manual(values = two_colours) +
+  scale_fill_manual(values = two_colors) +
   theme_classic() +
   labs(y = "Number of records",
        x = "Date",
-       title = "Avaliability of records")
+       title = "Availability of records")
 
 ```
 
-An analysis of how many records are available to who and for which time periods show that `r x_per_records` of `r xs` time periods had records that meet the accuracy standards. In comparison, `r y_per_records` of `r ys` time periods contained records.
+An analysis of how many records are available to who and for which periods shows that `r x_per_records` of `r xs` periods had records that meet the accuracy standards. In comparison, `r y_per_records` of `r ys` periods contained records.
 
-Gaps in records could be due to a lack of mobile data (which is notably expensive in South Africa) or our cellphones being turned off while traveling. Further, there may be gaps when privacy settings disallowed the collection of location history.
+Gaps in records could be due to a lack of mobile data (which is notably expensive in South Africa) or our cell phones being turned off. Further, there may be gaps when privacy settings disallowed the collection of location history.
 
-These variables means that no matter the result, there will still be some uncertainty during the un-recorded periods where we may have crossed pathways but no evidence exists.
+These variables mean that no matter the result, there will still be some uncertainty during the un-recorded periods where we may have crossed pathways but no evidence exists.
 
-```{r records_avaliable_chart, fig.cap= "The timeline under review, showing the avaliability of records per person. Only time periods with records for both people will contain potential matches", echo = FALSE}
+```{r records_available_chart, fig.cap= "Fig 1: The timeline under review, showing the availability of records per person. Only time periods with records for both people will contain potential matches", echo = FALSE}
 
-records_avaliable
+records_available
 
 
 ```
@@ -427,13 +437,15 @@ records_avaliable
 
 ```{r source_composition_of_records, echo = FALSE, message = FALSE}
 
+# Analysing where the records were coming from, either WiFi, Cell, or GPS.
+
 source_record_composition <-
   ggplot(combined, aes(x = source, fill = person)) +
   geom_bar(position = "dodge") +
   labs(x = "Source",
        y = "Number of records",
        title = "Where did most of the records source from?") +
-  scale_fill_manual(values = two_colours) +
+  scale_fill_manual(values = two_colors) +
   theme_classic()
 
 unique_location_sources <- combined %>%
@@ -465,17 +477,18 @@ composition_table <-
 
 ```
 
-Analysing the source of the records show that the majority of the collected records came from instances where the cellphone was connected to WiFi.
+Analysing the source of the records shows that most of the collected records came from instances where the cell phone was connected to Wi-Fi.
 
-```{r source_composition_of_records_chart, fig.cap= "The number of records by person and by source.", echo = FALSE}
+```{r source_composition_of_records_chart, fig.cap= "Fig 2: The number of records by person and by source.", echo = FALSE}
 
 source_record_composition
 
 ```
 
-However, when considering the number of unique coordinates per source it's evident that most of the unique locations came from GPS, and that WiFi and cell records where tied to a handful of locations. Only `r count_wifi_coords` WiFi routers made up all of the `r count_wifi_records` records. There was also only `r count_cell_coords` cell phone towers with unique coordinates making up `r count_cell_records` records.
+However, when considering the number of unique coordinates per source it's evident that most of the unique locations came from GPS, and that Wi-Fi and cell records were tied to a handful of locations. Only `r count_wifi_coords` WiFi routers made up all the `r count_wifi_records` records. There were also only `r count_cell_coords` cell phone towers with unique coordinates making up `r count_cell_records` records.
 
-We can understand this better by looking to the aggregate number of unique records per unique locations by source. WiFi had the greatest number of records per location because everything in range of the WiFi router was centralised to the router's location when cellphones connected to WiFi. The same is true for cell towers, however at a lesser rate. GPS records were the most likely to be detailed.
+We can understand this better by looking at the aggregate number of unique records per unique location by source. Wi-Fi had the greatest number of records per location because many records in the range of a Wi-Fi router were centralised to the router's location when cell devices connected to Wi-Fi. The same is true for cell towers, however at a lesser rate. GPS records were the most likely to be recorded with higher accuracy.
+
 
 ```{r tables_locations_per_source, echo = FALSE}
 
@@ -514,15 +527,15 @@ source_accuracy <-
 
 ```
 
-Finally, it's important to consider the differences in accuracy of the different sources. Along with being the most likely to record coordinates away from centralised WiFi routers or cell towers, GPS records are also on average the most accurate.
+Finally, it's important to consider the differences in the accuracy of different sources. Along with being the most likely to record coordinates away from centralised Wi-Fi routers or cell towers, GPS records are also on average the most accurate.
 
-```{r accuracy_by_source_chart, fig.cap= "Boxplot showing accuracy statistics by record source. Remember that the minimum accuracy is set above, so the graph only considers records within the stated parameters.", echo = FALSE}
+```{r accuracy_by_source_chart, fig.cap= "Fig 3: Boxplot showing accuracy statistics by record source. Remember that the minimum accuracy is set above, so the graph only considers records within the stated parameters.", echo = FALSE}
 
 source_accuracy
 
 ```
 
-## Places we've both frequently visited
+## How close in distance did we get?
 
 This is an initial view of some of the most common places we both visited.
 
@@ -571,7 +584,7 @@ save(both_places, file = "both_places.RData")
 
 #### Visualizing all the places we had both been
 
-```{r map_common_locations, warning = FALSE, message=FALSE}
+```{r map_common_locations, warning = FALSE, message=FALSE, fig.cap = "Fig 4: Common locations were both people had been recorded at some point turning the full time period. colors indicate who made the most records in each location."}
 
 # Get Map data from Google API
 
@@ -581,10 +594,7 @@ save(both_places, file = "both_places.RData")
 # Find Maps API Key and SHOW KEY, then copy and paste your API key below:
 # register_google(key = "[your key]", write = TRUE)
 
-#Set a colour palette
-my_palette <- c("gold", "green3", "royalblue3")
-
-#plot the map, scaling by number of records, and colouring by who visited most frequently
+#plot the map, scaling by number of records, and coloring by who visited most frequently
 
 map_most_common_places <- get_map(
   location = c(
@@ -602,7 +612,7 @@ common_places_map <- ggmap(map_most_common_places) +
       x = longitude,
       y = latitude,
       size = both_records,
-      colour = dif_per
+      color = dif_per
     ),
     data = both_places,
     alpha = 0.8,
@@ -610,8 +620,8 @@ common_places_map <- ggmap(map_most_common_places) +
   ) +
   scale_radius(range = c(1, 10),
                name = "Number of records") +
-  scale_colour_gradientn(
-    colours = three_colours,
+  scale_color_gradientn(
+    colors = three_colors,
     name = "Most visited by person",
     breaks = c(min(both_places$dif_per), 0, max(both_places$dif_per)),
     labels = c(y, "both", x)
@@ -629,15 +639,15 @@ common_places_map
 
 ```
 
-There were `r n_distinct(both_places$coordinates)` coordinates we were both recorded in at some point during the five year time frame. It's clear that most of the common locations are the main roads in and around the city. I lived and worked in the northern part of the city, and that's visible by all the yellow. My partner spent most of his time living and studying around the university.
+There were `r n_distinct(both_places$coordinates)` coordinates we were both recorded in at some point during the five-year time frame. Most of the common locations are the main roads in and around the city. I lived and worked in the northern part of the city, and that's visible by all the yellow. My partner spent most of his time living and studying around the university, visible in big red markers.
 
-## How close in time did we get to meeting in any of those places?
+## How close in time did we get to each other at those common places?
 
-Now that I've been able to whittle down the potential locations we could have meet, next we'll need to measure how near in time we came to being at those locations.
+Now that I've been able to whittle down the potential locations we could have met, next we'll need to measure how near in time we came to be at those locations.
 
-We've already calculated the time difference (time_diff) between any two visits in the both_places data frame. This is because when joining the two data frames for each time-stamp of person x's visits in a set of coordinates, there is corresponding data for each time-stamp of person y's visits to a particular set of coordinates.
+We've already calculated the time difference (time_diff) between any two visits in both_places data frame. This is because when joining the two data frames for each timestamp of person x's visits in a set of coordinates, there is corresponding data for each timestamp of person y's visits to a particular set of coordinates.
 
-```{r minimum_time_differences, warning = FALSE, message = FALSE}
+```{r minimum_time_differences, warning = FALSE, message = FALSE, fig.cap = "Fig 5: The closest brushes, showing the coordinates where we most likely crossed paths, coloured by how near in time it was with red markers showing instances where we were ten minutes or less apart."}
 
 #To minimise the time it takes to run we can begin by filtering out the values with time differences of more than 12 hours (the vast majority of the records).
 
@@ -656,8 +666,6 @@ closest_timestamps <- grouped_places %>%
   mutate(closest_visit = as.numeric(closest_visit) / 60)
 
 crossed_paths <- closest_timestamps %>% filter(time_dif == 0)
-
-crossed_paths_n <- crossed_paths %>% length()
 
 map_close_brushes <- get_map(
   location = c(
@@ -678,7 +686,7 @@ close_brushes_map <- ggmap(map_close_brushes,
     alpha = 0.7,
     position = "jitter"
   ) +
-  scale_colour_gradientn(colours = three_colours, name = "Minutes  apart (+/- 10 mins)") +
+  scale_color_gradientn(colors = three_colors, name = "Minutes  apart (+/- 10 mins)") +
   theme(
     text = element_text(family = "sans"),
     axis.title = element_blank(),
@@ -690,7 +698,7 @@ close_brushes_map <- ggmap(map_close_brushes,
   geom_text(
     data = closest_timestamps,
     aes(longitude, latitude, label = closest_visit),
-    colour = "white",
+    color = "white",
     check_overlap = TRUE,
     size = 3,
     hjust = 0.5,
@@ -701,14 +709,26 @@ close_brushes_map
 
 
 ```
+```{r removing problem dates, echo = FALSE}
 
-Oh how exciting! There were `r crossed_paths_n` instances (largely around campus) where we had come closer than `r accuracy[1,accuracy_level]` meters from another `r time_accuracy` or less apart.
+problem_dates <- c(as.Date("2016-02-02"), as.Date("2016-02-17"), as.Date("2016-03-01"), as.Date("2019-02-21"))
 
-### How close did we ever get to each other at any given time?
+crossed_paths_n <- crossed_paths %>% 
+  ungroup() %>%
+  mutate(met_day = as.Date(timestamp.x)) %>%
+  filter(!met_day %in% problem_dates)%>%
+  select(met_day) %>%
+  n_distinct()
+
+```
+
+Oh, how exciting! There were `r crossed_paths_n` instances (largely around campus) where we had come closer than `r accuracy[1,accuracy_level]` meters from another `r time_accuracy` or less apart.
+
+### Finding minimum time intervals at the same locations
 
 So when did these close brushes occur? Let's plot them over time.
 
-```{r all_time_intervals, message=FALSE, warning=FALSE}
+```{r all_time_intervals, message=FALSE, warning=FALSE, fig.cap = "Fig 6: Distance from each other over time where records overlapped."}
 
 all_intervals <-
   seq(from = start_looking_from, to = best_day, by = "10 min") %>%
@@ -738,8 +758,7 @@ haversine_calc <- function(lat.x, lat.y, lon.x, lon.y) {
   dlat <- r.lat.y - r.lat.x
   dlon <- r.lon.y - r.lon.x
   
-  a <- sin(dlat / 2) ** 2 + cos(r.lat.x) * cos(r.lat.y) * sin(dlon / 2) **
-    2
+  a <- sin(dlat / 2) ** 2 + cos(r.lat.x) * cos(r.lat.y) * sin(dlon / 2) **  2
   
   c <- 2 * asin(sqrt(a))
   
@@ -780,7 +799,7 @@ ggplot(whole_time_simple,
     fill = "white",
     size = 3
   ) +
-  scale_color_discrete(two_colours, name = "Closest brush?") +
+  scale_color_discrete(two_colors, name = "Closest brush?") +
   theme_classic() +
   labs(x = "Date",
        y = "Distance from each other (meters)") +
@@ -789,16 +808,17 @@ ggplot(whole_time_simple,
 
 ```
 
-Between 2016-2018 while I was studying and before I graduated the distances between us on any given day tended to be closer than from 2018 when I stopped going to campus. This makes me think that our chance of meeting in the wild most likely would have happened on campus, and that after that our chances declined.
+Between 2016-2017 while I was studying and before I graduated the distances between us on any given day tended to be closer than in 2018 when I stopped going to campus. This makes me think that our chance of meeting in the wild most likely would have happened on campus, and that after that our chances declined.
 
 # The Answer
 
-```{r the_closest_distances, message = FALSE, warning = FALSE}
+```{r the_closest_distances, message = FALSE, warning = FALSE, fig.cap= "Fig 7: Chan in blue, Dan in red. Each map represents one day where our paths crossed.", fig.height= 20}
 
 #Finding the dates that we were at 0m(+/- 111m) from each other
 dates_crossed_paths <- whole_time_both %>%
   filter(distance == 0) %>%
-  mutate(day = as.Date(timestamp))
+  mutate(day = as.Date(timestamp)) %>%
+  filter(!day %in% problem_dates)
 
 #Visualising it
 map_close_distances <- get_map(
@@ -823,7 +843,7 @@ ggmap(map_close_distances) +
   geom_point(
     aes(x = longitude.y, y = latitude.y),
     data = dates_crossed_paths,
-    colour = two_colours[2],
+    color = two_colors[2],
     size = 1,
     alpha = 0.5,
     position = "jitter"
@@ -831,23 +851,37 @@ ggmap(map_close_distances) +
   geom_point(
     aes(x = longitude.x, y = latitude.x),
     data = dates_crossed_paths,
-    colour = two_colours[1],
+    color = two_colors[1],
     size = 1,
     alpha = 0.5,
     position = "jitter"
   ) +
   theme_void() +
-  labs(title = "Crossing paths on campus",
-       subtitle = "Chan in blue, Dan in red. Each map represents one day where our paths crossed.") +
-  facet_wrap( ~ day, ncol = 7, nrow = 5)
+  labs(title = "Crossing paths on campus") +
+  facet_wrap( ~ day, ncol = 4, nrow = 8)
 
 ```
 
-There were 35 *recorded* occasions where we may have crossed paths, mostly on campus. 35 times we may have been within arms reach of each other and we never even registered. It makes me feel very philosophical. In all likelihood we had walked past each other with our heads down, or in the clouds, paying very little notice to the people around us. Young Channon had not the foggiest clue what impact an unnoticed stranger would come to have on her. Since learning this I can't help but looked at the strangers in my day-to-day life in a different light.
+```{r extrapolating}
 
-### Our 35 almost-met-cute stories
+total_time_in_uni <- ((total_time/144) - as.numeric(as.Date(best_day) - as.Date("2018/01/01")))*(24*6) %>%
+  as.numeric()
 
-I'm really have glad to have gone down this rabbit hole because now I think about the 35 near-misses we had, where if an audience had been watching they may have been on the edge of their seats. Like on the 16th of August 2017, exactly one week short of three years before we would meet, we're recorded at the same GPS coordinates in this spot where I frequently had lunch, near a coffee booth. Did he just trot past on the stairs? Did he take a seat in the shade under the trees? Did we queue together in line for coffee? I guess Google doesn't have the answer for everything. but it's pleasant to imagine.
+both_records_time <- whole_time_both$timestamp %>% unique() %>% length()
+
+per_time_with_records <- both_records_time/total_time_in_uni
+
+extrapolated <- crossed_paths_n / per_time_with_records %>% round(digits = 1)
+
+```
+
+There were `r crossed_paths_n` *recorded* occasions where we may have crossed paths, mostly on campus. A whole bunch of times we may have been within arm’s reach of each other, and we never even registered. Considering that only `r per_time_with_records` percent of our time had records that met the given accuracy standards, extrapolating out to the start of 2018 when I stopped going to the university campus (making a few iffy assumptions about the records representing a random sample) this means we could have crossed paths `r extrapolated` times!
+
+It makes me feel very philosophical. Likely we had walked past each other every other week for three years with our heads down, or in the clouds, paying very little notice to the people around us. Past Channon had not the foggiest clue what impact an unnoticed stranger would come to have on her. Since learning this I can't help but look at the passers-by in my day-to-day life in a different light.
+
+### Our many almost-met stories
+
+I'm glad to have gone down this rabbit hole because now I think about the `r extrapolated` near-misses we had, where if an audience had been watching they may have been on the edge of their seats. On the 16th of August 2017, exactly one week short of three years before we would meet, we're recorded at the same GPS coordinates in this spot where I frequently had lunch, near a coffee booth in the social sciences building. Did he just trot past on the stairs? Did he take a seat in the shade under the trees? Did we queue together in line for coffee? I guess Google doesn't have the answer for everything. but it's pleasant to imagine when we have our coffee together every morning that years before we may have silently enjoyed coffee near each other.
 
 ![Crossing paths three years before we met, -33.959, 18.46.](images/Screenshot-2022-08-26-143714.png.png)
 

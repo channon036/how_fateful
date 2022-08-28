@@ -1,0 +1,89 @@
+---
+title: "testing"
+author: "Channon Perry"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{css, echo=FALSE, message = FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+.code {
+  background-color: #FFF8C7;
+  border: 3px #38315F;
+  
+knitr::opts_chunk$set(class.source = "code")
+knitr::opts_chunk$set(fig.width=24, fig.height=8) 
+
+```
+
+```{r setup, message = FALSE, warning = FALSE}
+
+packages <-
+  c("tidyverse",
+    "lubridate",
+    "rjson",
+    "ggplot2",
+    "ggmap",
+    "wesanderson")
+
+install.packages(setdiff(packages, rownames(installed.packages())))
+
+library(tidyverse)
+library(lubridate)
+library(rjson)
+library(ggplot2)
+library(ggmap)
+library(wesanderson)
+
+```
+
+```{r the_closest_distances, message = FALSE, warning = FALSE, fig.cap= "Fig 7: Chan in blue, Dan in red. Each map represents one day where our paths crossed."}
+
+#Finding the dates that we were at 0m(+/- 111m) from each other
+dates_crossed_paths <- whole_time_both %>%
+  filter(distance == 0) %>%
+  mutate(day = as.Date(timestamp))
+
+#Visualising it
+map_close_distances <- get_map(
+  location = c(lon = median(
+    c(
+      dates_crossed_paths$longitude.x,
+      dates_crossed_paths$longitude.y
+    )
+  ),
+  lat = median(
+    c(
+      dates_crossed_paths$latitude.x,
+      dates_crossed_paths$latitude.y
+    )
+  )),
+  zoom = 17,
+  scale = "auto",
+  maptype = "toner-lite"
+)
+
+ggmap(map_close_distances) +
+  geom_point(
+    aes(x = longitude.y, y = latitude.y),
+    data = dates_crossed_paths,
+    colour = two_colours[2],
+    size = 1,
+    alpha = 0.5,
+    position = "jitter"
+  ) +
+  geom_point(
+    aes(x = longitude.x, y = latitude.x),
+    data = dates_crossed_paths,
+    colour = two_colours[1],
+    size = 1,
+    alpha = 0.5,
+    position = "jitter"
+  ) +
+  theme_void() +
+  labs(title = "Crossing paths on campus") +
+  facet_wrap( ~ day, ncol = 7, nrow = 5)
+
+```
